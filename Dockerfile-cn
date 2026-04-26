@@ -1,5 +1,9 @@
+# 可通过构建参数覆盖基础镜像，默认使用国内镜像加速
+ARG PYTHON_BASE_IMAGE=docker.m.daocloud.io/library/python:3.11-slim-bookworm
+ARG NODE_BASE_IMAGE=docker.m.daocloud.io/library/node:20-alpine
+
 # 使用Python 3.11作为基础镜像
-FROM python:3.11-slim-bookworm AS base
+FROM ${PYTHON_BASE_IMAGE} AS base
 
 # 设置环境变量
 ENV PYTHONUNBUFFERED=1 \
@@ -20,7 +24,7 @@ RUN if [ -f /etc/apt/sources.list.d/debian.sources ]; then \
     fi
 
 # ==================== Frontend Builder Stage ====================
-FROM node:20-alpine AS frontend-builder
+FROM ${NODE_BASE_IMAGE} AS frontend-builder
 
 WORKDIR /frontend
 

@@ -408,40 +408,22 @@ import httpx
 
 @app.get('/api/version/check')
 async def check_version():
-    """检查最新版本（代理外部接口）"""
-    try:
-        async with httpx.AsyncClient(timeout=20.0) as client:
-            response = await client.get('https://xianyu.zhinianblog.cn/index.php?action=getVersion')
-            if response.status_code == 200:
-                try:
-                    return response.json()
-                except Exception:
-                    # 如果不是有效JSON，返回HTML内容
-                    return {"html": response.text}
-            else:
-                return {"error": True, "message": f"远程服务返回状态码: {response.status_code}"}
-    except Exception as e:
-        logger.error(f"检查版本失败: {e}")
-        return {"error": True, "message": f"检查版本失败: {str(e)}"}
+    """检查最新版本（已禁用外部请求）"""
+    return {
+        "error": True,
+        "message": "Version check is disabled for privacy.",
+        "disabled": True
+    }
 
 
 @app.get('/api/version/changelog')
 async def get_changelog():
-    """获取更新日志（代理外部接口）"""
-    try:
-        async with httpx.AsyncClient(timeout=20.0) as client:
-            response = await client.get('https://xianyu.zhinianblog.cn/index.php?action=getUpdateInfo')
-            if response.status_code == 200:
-                try:
-                    return response.json()
-                except Exception:
-                    # 如果不是有效JSON，返回HTML内容
-                    return {"html": response.text}
-            else:
-                return {"error": True, "message": f"远程服务返回状态码: {response.status_code}"}
-    except Exception as e:
-        logger.error(f"获取更新日志失败: {e}")
-        return {"error": True, "message": f"获取更新日志失败: {str(e)}"}
+    """获取更新日志（已禁用外部请求）"""
+    return {
+        "error": True,
+        "message": "Changelog fetch is disabled for privacy.",
+        "disabled": True
+    }
 
 
 # 服务 React 前端 SPA - 所有前端路由都返回 index.html
@@ -2269,12 +2251,11 @@ async def check_qr_code_status(session_id: str, current_user: Dict[str, Any] = D
 
             # 获取会话状态
             status_info = qr_login_manager.get_session_status(session_id)
-            log_with_user('info', f"获取会话状态1111111: {status_info}", current_user)
+            safe_status_info = {k: v for k, v in status_info.items() if k not in ('cookies', 'unb')}
+            log_with_user('debug', f"扫码登录会话状态: {safe_status_info}", current_user)
             if status_info['status'] == 'success':
-                log_with_user('info', f"获取会话状态22222222: {status_info}", current_user)
                 # 登录成功，处理Cookie（现在包含获取真实cookie的逻辑）
                 cookies_info = qr_login_manager.get_session_cookies(session_id)
-                log_with_user('info', f"获取会话Cookie: {cookies_info}", current_user)
                 if cookies_info:
                     account_info = await process_qr_login_cookies(
                         cookies_info['cookies'],
@@ -2291,6 +2272,9 @@ async def check_qr_code_status(session_id: str, current_user: Dict[str, Any] = D
                         'timestamp': time.time()
                     }
 
+            # Never return raw cookie payloads to frontend.
+            status_info.pop('cookies', None)
+            status_info.pop('unb', None)
             return status_info
 
     except Exception as e:

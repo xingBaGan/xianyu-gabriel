@@ -360,7 +360,8 @@ class QRLoginManager:
                                 if k == 'unb':
                                     session.unb = v
 
-                            logger.info(f"扫码登录成功: {session_id}, UNB: {session.unb}")
+                            masked_unb = f"{session.unb[:3]}***{session.unb[-2:]}" if session.unb and len(session.unb) > 5 else "***"
+                            logger.info(f"扫码登录成功: {session_id}, UNB(masked): {masked_unb}")
                             break
 
                     elif qrcode_status == "NEW":
