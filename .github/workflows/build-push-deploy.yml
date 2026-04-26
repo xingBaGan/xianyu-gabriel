@@ -5,6 +5,10 @@ on:
     branches: ["main"]
   workflow_dispatch:
 
+concurrency:
+  group: deploy-main
+  cancel-in-progress: true
+
 env:
   GHCR_REGISTRY: ghcr.io
   TENCENT_REGISTRY: hkccr.ccs.tencentyun.com
@@ -53,8 +57,10 @@ jobs:
           tags: |
             ${{ steps.vars.outputs.ghcr_image }}:latest
             ${{ steps.vars.outputs.ghcr_image }}:${{ steps.vars.outputs.short_sha }}
+            ${{ steps.vars.outputs.ghcr_image }}:${{ github.sha }}
             ${{ steps.vars.outputs.ccr_image }}:latest
             ${{ steps.vars.outputs.ccr_image }}:${{ steps.vars.outputs.short_sha }}
+            ${{ steps.vars.outputs.ccr_image }}:${{ github.sha }}
 
   deploy:
     runs-on: ubuntu-latest
@@ -67,6 +73,7 @@ jobs:
           REGISTRY: ${{ env.TENCENT_REGISTRY }}
           NAMESPACE: ${{ env.TENCENT_NAMESPACE }}
           IMAGE_NAME: ${{ env.IMAGE_NAME }}
+          IMAGE_TAG: ${{ github.sha }}
           CCR_USERNAME: ${{ secrets.TENCENT_USERNAME }}
           CCR_PASSWORD: ${{ secrets.TENCENT_PASSWORD }}
         with:
@@ -74,13 +81,15 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT }}
-          envs: DEPLOY_DIR,REGISTRY,NAMESPACE,IMAGE_NAME,CCR_USERNAME,CCR_PASSWORD
+          envs: DEPLOY_DIR,REGISTRY,NAMESPACE,IMAGE_NAME,IMAGE_TAG,CCR_USERNAME,CCR_PASSWORD
           script: |
             set -e
             cd "$DEPLOY_DIR"
-            git pull origin main
+            git fetch origin main
+            git checkout main
+            git pull --ff-only origin main
             echo "$CCR_PASSWORD" | docker login "$REGISTRY" -u "$CCR_USERNAME" --password-stdin
-            export XIANYU_APP_IMAGE="$REGISTRY/$NAMESPACE/$IMAGE_NAME:latest"
+            export XIANYU_APP_IMAGE="$REGISTRY/$NAMESPACE/$IMAGE_NAME:$IMAGE_TAG"
             docker compose -f docker-compose-cn.yml pull xianyu-app
             docker compose -f docker-compose-cn.yml up -d --no-deps xianyu-app
             docker compose -f docker-compose-cn.yml up -d
